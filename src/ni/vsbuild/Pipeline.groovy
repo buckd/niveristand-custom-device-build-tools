@@ -123,42 +123,22 @@ class Pipeline implements Serializable {
    }
 
    void execute() {
-      readBuildInformation()
-      validateShouldBuildPipeline()
+      try {
+         readBuildInformation()
+         validateShouldBuildPipeline()
 
-      // build dependencies before starting this pipeline
-      script.buildDependencies(pipelineInformation)
+         // build dependencies before starting this pipeline
+         script.buildDependencies(pipelineInformation)
 
-      def builders = [:]
-
-      for(String version : pipelineInformation.lvVersions) {
-
-         // need to bind the variable before the closure - can't do 'for (version in lvVersions)'
-         def lvVersion = version
-
-         String nodeLabel = lvVersion
-         if (pipelineInformation.nodeLabel?.trim()) {
-            nodeLabel = "$nodeLabel && ${pipelineInformation.nodeLabel}"
-         }
-
-         builders[lvVersion] = {
-            script.node(nodeLabel) {
-               setup(lvVersion)
-
-               def configuration = BuildConfiguration.loadString(script, jsonConfig, lvVersion)
-               configuration.printInformation(script)
-
-               def builder = new Builder(script, configuration, lvVersion, MANIFEST_FILE, changedFiles)
-               def stages = builder.buildPipeline()
-
-               executeStages(stages)
-            }
+         runBuild()
+         validateBuild()
+      }
+      finally {
+         def pipelineResult = PipelineStatus.getResult(script)
+         if (pipelineResult != PipelineResult.SUCCESS) {
+            notify(pipelineResult)
          }
       }
-
-      script.parallel builders
-
-      validateBuild()
    }
 
    protected void executeStages(stages) {
@@ -222,6 +202,37 @@ class Pipeline implements Serializable {
       }
    }
 
+   private void runBuild() {
+      def builders = [:]
+
+      for(String version : pipelineInformation.lvVersions) {
+
+         // need to bind the variable before the closure - can't do 'for (version in lvVersions)'
+         def lvVersion = version
+
+         String nodeLabel = lvVersion
+         if (pipelineInformation.nodeLabel?.trim()) {
+            nodeLabel = "$nodeLabel && ${pipelineInformation.nodeLabel}"
+         }
+
+         builders[lvVersion] = {
+            script.node(nodeLabel) {
+               setup(lvVersion)
+
+               def configuration = BuildConfiguration.loadString(script, jsonConfig, lvVersion)
+               configuration.printInformation(script)
+
+               def builder = new Builder(script, configuration, lvVersion, MANIFEST_FILE, changedFiles)
+               def stages = builder.buildPipeline()
+
+               executeStages(stages)
+            }
+         }
+      }
+
+      script.parallel builders
+   }
+
    private void setup(lvVersion) {
       def manifest = script.readJSON text: '{}'
 
@@ -240,6 +251,10 @@ class Pipeline implements Serializable {
          script.echo "Writing manifest to $MANIFEST_FILE"
          script.writeJSON file: MANIFEST_FILE, json: manifest, pretty: 3
       }
+   }
+
+   private void notify(PipelineResult result) {
+      return
    }
 
    // This method is here to catch builds with issue 50:
