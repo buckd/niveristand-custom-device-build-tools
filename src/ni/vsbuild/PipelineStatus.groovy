@@ -2,14 +2,26 @@ package ni.vsbuild
 
 class PipelineStatus implements Serializable {
 
+   // Taken from https://github.com/jenkinsci/jenkins/blob/master/core/src/main/java/hudson/model/Result.java
+   private static final String SUCCESS_STRING = 'SUCCESS'
+   private static final String FAILURE_STRING = 'FAILURE'
+   private static final String UNSTABLE_STRING = 'UNSTABLE'
+   private static final String NOT_BUILT_STRING = 'NOT_BUILT'
+   private static final String ABORTED_STRING = 'ABORTED'
+
    public static PipelineResult getResult(def script) {
       // Modified from https://jenkins.io/doc/pipeline/tour/running-multiple-steps/#finishing-up
-      def currentResult = script.currentBuild.result ?: 'SUCCESS'
+      // Default to success if no result exists yet
+      def currentResult = script.currentBuild.result ?: SUCCESS_STRING
       def previousResult = script.currentBuild.previousBuild?.result
-      def currentFailure = (currentResult == 'FAILURE')
+      def currentFailure = (currentResult == FAILURE_STRING || currentResult == NOT_BUILT_STRING)
 
-      if (currentResult == 'UNSTABLE') {
+      if (currentResult == UNSTABLE_STRING) {
          return PipelineResult.UNSTABLE
+      }
+
+      if (currentResult == ABORTED_STRING) {
+         return PipelineResult.ABORTED
       }
 
       if (previousResult) {

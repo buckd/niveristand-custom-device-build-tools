@@ -5,7 +5,8 @@ public enum NotificationMessage {
    FIXED('fixed'),
    NEW_FAILURE('failed'),
    EXISTING_FAILURE('still failing'),
-   UNSTABLE('unstable')
+   UNSTABLE('unstable'),
+   ABORTED('aborted')
 
    private final String value
    
