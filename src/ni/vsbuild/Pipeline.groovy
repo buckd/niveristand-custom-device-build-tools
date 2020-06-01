@@ -135,9 +135,7 @@ class Pipeline implements Serializable {
       }
       finally {
          def pipelineResult = PipelineStatus.getResult(script)
-         if (pipelineResult != PipelineResult.SUCCESS) {
-            notify(pipelineResult)
-         }
+         notify(pipelineResult)
       }
    }
 
@@ -180,8 +178,7 @@ class Pipeline implements Serializable {
       // We do not want to rebuild if our output would clobber existing data.
       // This can happen if the Jenkins build numbers reset, or e.g. due to
       // multiple repositories unintentionally exporting to the same location.
-      def arbitraryLvVersion = pipelineInformation.lvVersions[0]
-      def configuration = BuildConfiguration.loadString(script, jsonConfig, arbitraryLvVersion)
+      def configuration = getArbitraryVersionConfiguration()
       if (!configuration.archive) {
          // We won't clobber anything if we aren't archiving
          return
@@ -254,7 +251,21 @@ class Pipeline implements Serializable {
    }
 
    private void notify(PipelineResult result) {
-      return
+      if (pipelineResult == PipelineResult.SUCCESS) {
+         // Don't spam notifications if the build is consistently successful
+         return
+      }
+
+      // Send notification if defined in build.toml
+      def configuration = getArbitraryVersionConfiguration()
+      if (!configuration.notificationInfo) {
+         return
+      }
+
+      script.node(pipelineInformation.nodeLabel) {
+         Stage notifyStage = new Notify(script, configuration)
+         notifyStage.execute()
+      }
    }
 
    // This method is here to catch builds with issue 50:
@@ -280,5 +291,11 @@ class Pipeline implements Serializable {
             }
          }
       }
+   }
+
+   private String getArbitraryVersionConfiguration() {
+      def arbitraryLvVersion = pipelineInformation.lvVersions[0]
+      def configuration = BuildConfiguration.loadString(script, jsonConfig, arbitraryLvVersion)
+      return configuration
    }
 }

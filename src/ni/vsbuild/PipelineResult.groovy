@@ -6,4 +6,5 @@ enum PipelineResult {
    NEW_FAILURE,
    EXISTING_FAILURE,
    UNSTABLE,
+   ABORTED,
 }
