@@ -1,28 +1,26 @@
 package ni.vsbuild.notifications
 
-public enum NotificationMessage {
-   SUCCESS('succeeded'),
-   FIXED('fixed'),
-   NEW_FAILURE('failed'),
-   EXISTING_FAILURE('still failing'),
-   UNSTABLE('unstable'),
-   ABORTED('aborted')
+import ni.vsbuild.PipelineResult
 
-   private final String value
-   
-   NotificationMessage(String value) {
-      this.value = value
-   }
-   
-   public Map getMessage() {
-      def header = "Build ${env.JOB_NAME} $value."
-      return [header: header, body: getBody()]
+public class NotificationMessage extends Serializable {
+
+   def script
+   private final PipelineResult result
+
+   public NotificationMessage(def script, PipelineResult result) {
+      this.script = script
+      this.result = result
    }
 
-   private String getBody() {
-      def body = """
-      Build ${env.BUILD_ID} of ${env.JOB_NAME} finished with a status of ${name()}.
-      ${env.BUILD_URL}
-      """.stripIndent()
+   public String getHeader() {
+      def header = "Build ${script.env.JOB_NAME} ${result.asString()}."
+      return header
+   }
+
+   public String getMessage() {
+      def message = """
+         Build ${script.env.BUILD_ID} of ${script.env.JOB_NAME} finished with a result of ${result.name()}.
+         ${script.env.BUILD_URL}
+         """.stripIndent()
    }
 }
